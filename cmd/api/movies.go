@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"greenlight.nardone.xyz/internal/data"
+	"greenlight.nardone.xyz/internal/validator"
 	"net/http"
 	"time"
 )
@@ -10,10 +11,10 @@ import (
 func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Request) {
 	// This the object that we expect to receive from the request
 	var inputMovie struct {
-		Title   string   `json:"title"`
-		Year    int      `json:"year"`
-		Runtime int32    `json:"runtime"`
-		Genre   []string `json:"genres"`
+		Title   string       `json:"title"`
+		Year    int32        `json:"year"`
+		Runtime data.Runtime `json:"runtime"`
+		Genres  []string     `json:"genres"`
 	}
 
 	err := app.readJSON(w, r, &inputMovie)
@@ -21,7 +22,22 @@ func (app *application) createMovieHandler(w http.ResponseWriter, r *http.Reques
 		app.badRequestResponse(w, r, err)
 		return
 	}
-	fmt.Fprintf(w, "%+v", inputMovie)
+
+	movie := &data.Movie{
+		Title:   inputMovie.Title,
+		Year:    inputMovie.Year,
+		Runtime: inputMovie.Runtime,
+		Genres:  inputMovie.Genres,
+	}
+
+	v := validator.New()
+
+	if data.ValidateMovie(v, movie); !v.Valid() {
+		app.failedValidationResponse(w, r, v.Errors)
+		return
+	}
+
+	fmt.Fprintf(w, "Movie successfully created: %+v\n", inputMovie)
 }
 
 func (app *application) showMovieHandler(w http.ResponseWriter, r *http.Request) {
